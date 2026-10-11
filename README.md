@@ -79,6 +79,25 @@ telegram-tui
 
 这是一个需要交互式终端的 TUI，适合在 SSH 会话中前台运行。首次登录也需要终端交互，不能直接作为无终端的 systemd 服务完成登录。关闭 SSH 会话可能结束进程；重新启动后，登录状态通常可通过本地会话文件恢复。
 
+### 提示 `telegram-tui: command not found`
+
+通常是当前 SSH 用户尚未安装项目，或当前终端没有激活项目的虚拟环境。先确认登录用户，再进入自己安装项目的目录：
+
+```bash
+whoami
+cd "$HOME/telegram-tui-linux"
+source .venv/bin/activate
+telegram-tui
+```
+
+也可以直接运行虚拟环境中的命令，无需先激活：
+
+```bash
+"$HOME/telegram-tui-linux/.venv/bin/telegram-tui"
+```
+
+如果项目目录或 `.venv/bin/telegram-tui` 不存在，请使用当前 SSH 用户执行上面的安装步骤；安装在其他位置时，将路径替换为实际位置。其他 Linux 用户在自己的虚拟环境中安装项目，不会自动为当前用户安装命令。API 凭据环境变量和默认会话目录也跟随当前 Linux 用户，切换用户后需要分别配置。
+
 ## 使用方式
 
 左侧选择或搜索会话，右侧阅读消息，在底部输入框编辑单行文字并按 Enter 发送。点击会话也可以切换。**打开真实会话会将它标记为已读**；当前会话收到的新消息也会同步已读状态。
