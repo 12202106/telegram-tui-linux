@@ -1,0 +1,51 @@
+$tui-base: #0c121c;
+$tui-panel: #111b29;
+$tui-edge: #253449;
+$tui-muted: #8393a9;
+$tui-accent: #66d9c5;
+
+Screen { background: $tui-base; color: #e3eaf4; }
+#topbar { height: 3; padding: 1 2 0 2; background: #101a28; border-bottom: solid $tui-edge; }
+#brand { width: 1fr; }
+#connection { width: auto; color: $tui-accent; text-align: right; }
+#workspace { height: 1fr; }
+#sidebar { width: 32; min-width: 24; border-right: solid $tui-edge; background: $tui-panel; }
+#sidebar-heading { height: 3; padding: 1 2 0 2; }
+#inbox-title { text-style: bold; width: 1fr; }
+#dialog-count { color: $tui-accent; width: auto; }
+Input { background: #162233; border: tall #253449; padding: 0 1; }
+Input:focus { border: tall $tui-accent; }
+#search { margin: 0 1 1 1; }
+#dialogs { height: 1fr; padding: 0; border: none; background: transparent; }
+#dialogs > .option-list--option { padding: 0 1 1 1; }
+#dialogs > .option-list--option-highlighted { background: #243c4c; text-style: none; }
+#dialogs:focus > .option-list--option-highlighted { background: #264655; }
+#sidebar-note { height: 2; content-align: center middle; color: #64758d; text-style: italic; }
+#conversation { width: 1fr; }
+#chat-heading { height: 4; padding: 0 2; border-bottom: solid $tui-edge; }
+#chat-title { height: 1; text-style: bold; margin-top: 1; }
+#chat-subtitle { height: 1; color: $tui-muted; }
+#messages { height: 1fr; padding: 0 2; scrollbar-size: 1 1; scrollbar-color: #3c596b; scrollbar-background: $tui-base; }
+.day-divider { height: 3; content-align: center middle; color: #74869f; }
+.bubble { width: 1fr; height: auto; padding: 0 1; margin: 0 5 1 0; border-left: wide #345368; background: #131f2e; }
+.bubble.outgoing { margin: 0 0 1 5; border-left: wide #4eb7a3; background: #152d34; }
+.empty-chat { margin-top: 3; text-align: center; color: $tui-muted; }
+#empty-state { height: 1fr; content-align: center middle; color: $tui-muted; }
+#composer-row { height: 3; margin: 1 2 0 2; }
+#composer { width: 1fr; }
+#send { width: 10; min-width: 10; margin-left: 1; }
+Button.-primary { background: #66d9c5; color: #0c2427; text-style: bold; }
+Button.-primary:hover { background: #8ce9d9; }
+#compose-hint { height: 2; padding: 0 2; color: $tui-muted; }
+Footer { background: #152131; }
+Footer > .footer--key { background: #243a4c; color: $tui-accent; }
+LoginScreen, HelpScreen { align: center middle; background: #070c14 85%; }
+#login-card, #help-card { width: 64; max-width: 95%; height: auto; max-height: 95%; overflow-y: auto; border: round #3a796f; background: $tui-panel; padding: 1 3; }
+.modal-eyebrow { color: $tui-accent; margin-bottom: 1; }
+.modal-title { text-style: bold; color: #e3eaf4; margin-bottom: 1; }
+#login-hint { color: $tui-muted; margin-bottom: 1; }
+#login-card Input { margin-bottom: 1; }
+#login-error { color: #ff9b9b; height: auto; margin-bottom: 1; }
+#login-submit, #login-back, #close-help { width: 100%; margin-bottom: 1; }
+.muted { color: $tui-muted; }
+#help-card Static { margin: 1 0; }
