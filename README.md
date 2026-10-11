@@ -185,7 +185,7 @@ telegram-tui --version
 
 ## 共同开发
 
-- [12202106](https://github.com/12202106) — 需求提出与项目维护。
+- 项目维护者 — 需求提出与项目维护。
 - [OpenAI Codex](https://developers.openai.com/codex/) — 协助代码实现、离线测试和文档编写。
 
 ## 许可证
