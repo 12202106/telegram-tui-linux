@@ -1,5 +1,6 @@
 """Backend checks use a fake Telethon client; no account or network is needed."""
 
+import asyncio
 import os
 import stat
 from datetime import UTC, datetime
@@ -68,6 +69,91 @@ async def test_connect_reports_authorization_and_registers_once(backend, client)
     client.add_event_handler.assert_called_once()
     assert client.add_event_handler.call_args.args[1].incoming is None
     assert client.add_event_handler.call_args.args[1].outgoing is None
+
+
+@pytest.mark.parametrize("phase", ["connect", "is_user_authorized"])
+async def test_startup_timeout_cancels_transport_and_allows_retry(
+    backend, client, monkeypatch, phase
+):
+    monkeypatch.setattr(module, "_CONNECT_TIMEOUT", 0.01)
+    cancelled = asyncio.Event()
+
+    async def stalled():
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    getattr(client, phase).side_effect = stalled
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(backend.connect(), timeout=1)
+    assert cancelled.is_set()
+    client.disconnect.assert_awaited_once()
+    # Unlike final shutdown, the adapter does not close the session itself.
+    client.session.close.assert_not_called()
+    assert stat.S_IMODE(backend.session_path.stat().st_mode) == 0o600
+
+    getattr(client, phase).side_effect = None
+    client.is_user_authorized.return_value = False
+    assert await backend.connect() is False
+    client.add_event_handler.assert_called_once()
+    assert client.connect.await_count == 2
+
+
+async def test_startup_cleanup_is_bounded_when_disconnect_stalls(
+    backend, client, monkeypatch, caplog
+):
+    monkeypatch.setattr(module, "_CONNECT_TIMEOUT", 0.01)
+    monkeypatch.setattr(module, "_DISCONNECT_TIMEOUT", 0.01)
+    cleanup_cancelled = asyncio.Event()
+
+    async def stalled_connect():
+        await asyncio.Future()
+
+    async def stalled_disconnect():
+        try:
+            await asyncio.Future()
+        finally:
+            cleanup_cancelled.set()
+
+    client.connect.side_effect = stalled_connect
+    client.disconnect.side_effect = stalled_disconnect
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(backend.connect(), timeout=1)
+    assert cleanup_cancelled.is_set()
+    assert "Startup connection cleanup failed: TimeoutError" in caplog.text
+    client.session.close.assert_not_called()
+
+
+async def test_startup_cleanup_failure_does_not_hide_timeout(backend, client, monkeypatch, caplog):
+    monkeypatch.setattr(module, "_CONNECT_TIMEOUT", 0.01)
+
+    async def stalled():
+        await asyncio.Future()
+
+    client.connect.side_effect = stalled
+    client.disconnect.side_effect = ConnectionError("secret-api-hash")
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(backend.connect(), timeout=1)
+    assert "ConnectionError" in caplog.text
+    assert "secret-api-hash" not in caplog.text
+
+
+async def test_cancelled_startup_cleans_partial_connection(backend, client):
+    started = asyncio.Event()
+
+    async def stalled():
+        started.set()
+        await asyncio.Future()
+
+    client.connect.side_effect = stalled
+    connection = asyncio.create_task(backend.connect())
+    await started.wait()
+    connection.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await connection
+    client.disconnect.assert_awaited_once()
+    client.session.close.assert_not_called()
 
 
 async def test_code_login_preserves_request_hash_and_clears_it_on_success(backend, client):
@@ -282,6 +368,7 @@ def test_session_symlink_does_not_change_target_permissions(tmp_path, client):
         (errors.PhoneCodeExpiredError(request=None), "验证码已过期"),
         (errors.PhoneNumberInvalidError(request=None), "国家区号"),
         (errors.PasswordHashInvalidError(request=None), "密码不正确"),
+        (TimeoutError("api_hash=secret"), "连接 Telegram 超时"),
         (ConnectionError("api_hash=secret"), "连接失败"),
         (RuntimeError("api_hash=secret"), "操作失败"),
     ],

@@ -294,6 +294,14 @@ class TelegramApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
+        # Textual's production runner enables eager tasks on Python 3.12+.
+        # Telethon starts its send/receive tasks before marking the transport
+        # connected; eager execution makes both tasks exit before that flag is
+        # set. Use deferred scheduling for the application's network workers.
+        loop = asyncio.get_running_loop()
+        eager_factory = getattr(asyncio, "eager_task_factory", None)
+        if eager_factory is not None and loop.get_task_factory() is eager_factory:
+            loop.set_task_factory(None)
         self.theme = "textual-dark"
         self.initialize()
 
@@ -313,12 +321,15 @@ class TelegramApp(App[None]):
         if self.backend is None:
             self.push_screen(LoginScreen(), self._login_finished)
             return
+        if not self.backend.is_demo:
+            self.query_one("#connection", Static).update("正在连接 Telegram…")
         try:
             if await self.backend.connect():
                 await self.load_account()
             else:
                 self.push_screen(LoginScreen("phone"), self._login_finished)
         except Exception as exc:
+            self.query_one("#connection", Static).update("连接失败 · 请重试")
             self.push_screen(LoginScreen("connect", describe_error(exc)), self._login_finished)
 
     def _login_finished(self, authorized: bool | None) -> None:

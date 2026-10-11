@@ -182,6 +182,74 @@ class LoginBackend(DemoBackend):
         self.authorized = True
 
 
+class TransportTaskLoginBackend(LoginBackend):
+    """Model Telethon's transport tasks starting before its connected flag is set."""
+
+    def __init__(self):
+        super().__init__()
+        self.transport_running = False
+
+    async def connect(self):
+        async def start_transport():
+            return self._connected
+
+        transport_task = asyncio.create_task(start_transport())
+        authorized = await super().connect()
+        self.transport_running = await transport_task
+        if not self.transport_running:
+            raise ConnectionError("transport task started before connection was ready")
+        return authorized
+
+
+async def test_production_runner_starts_transport_and_displays_phone_login():
+    # run_test bypasses run_async's task factory setup and cannot catch this race.
+    backend = TransportTaskLoginBackend()
+    app = TelegramApp(backend)
+    loop = asyncio.get_running_loop()
+    original_factory = loop.get_task_factory()
+
+    async def check_login(pilot):
+        try:
+            await asyncio.wait_for(settle(app, pilot), timeout=3)
+            assert backend.transport_running
+            assert isinstance(app.screen, LoginScreen)
+            assert app.screen.stage == "phone"
+            assert app.screen.query_one("#auth-value", Input).display
+        finally:
+            app.exit()
+
+    try:
+        await asyncio.wait_for(
+            app.run_async(headless=True, size=(100, 30), auto_pilot=check_login), timeout=5
+        )
+    finally:
+        loop.set_task_factory(original_factory)
+    assert not backend._connected
+
+
+async def test_production_runner_loads_demo_and_disconnects():
+    backend = DemoBackend(reply_delay=60)
+    app = TelegramApp(backend)
+    loop = asyncio.get_running_loop()
+    original_factory = loop.get_task_factory()
+
+    async def check_demo(pilot):
+        try:
+            await asyncio.wait_for(settle(app, pilot), timeout=3)
+            assert app.ready and app.selected_chat == 1001
+            assert "演示" in app.query_one("#connection", Static).render().plain
+        finally:
+            app.exit()
+
+    try:
+        await asyncio.wait_for(
+            app.run_async(headless=True, size=(100, 30), auto_pilot=check_demo), timeout=5
+        )
+    finally:
+        loop.set_task_factory(original_factory)
+    assert not backend._connected
+
+
 async def test_login_phone_code_two_factor_without_real_network():
     backend = LoginBackend()
     app = TelegramApp(backend)

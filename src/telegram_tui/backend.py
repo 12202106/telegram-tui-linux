@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from datetime import UTC, datetime
@@ -13,6 +14,8 @@ from telethon import TelegramClient, errors, events
 from .models import ChatMessage, Dialog, MessageHandler, User
 
 _log = logging.getLogger(__name__)
+_CONNECT_TIMEOUT = 20.0
+_DISCONNECT_TIMEOUT = 5.0
 
 
 class CodeNotRequestedError(RuntimeError):
@@ -58,7 +61,9 @@ def describe_error(exc: Exception) -> str:
         return messages[type(exc).__name__]
     if isinstance(exc, PermissionError):
         return "无法读写会话文件，请检查会话目录的权限。"
-    if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
+    if isinstance(exc, TimeoutError):
+        return "连接 Telegram 超时，请检查网络或代理设置后重试。"
+    if isinstance(exc, (ConnectionError, OSError)):
         return "连接失败，请检查网络或代理设置后重试。"
     if isinstance(exc, errors.RPCError):
         return "Telegram 暂时无法完成此请求，请稍后重试。"
@@ -179,8 +184,18 @@ class TelegramBackend:
             self._client.add_event_handler(self._on_new_message, events.NewMessage())
             self._events_registered = True
         try:
-            await self._client.connect()
-            return await self._client.is_user_authorized()
+            async with asyncio.timeout(_CONNECT_TIMEOUT):
+                await self._client.connect()
+                return await self._client.is_user_authorized()
+        except (TimeoutError, asyncio.CancelledError):
+            # A timed-out handshake may leave transport tasks running. Telethon
+            # can reopen its SQLite session when the same client retries.
+            try:
+                async with asyncio.timeout(_DISCONNECT_TIMEOUT):
+                    await self._client.disconnect()
+            except Exception as exc:
+                _log.warning("Startup connection cleanup failed: %s", type(exc).__name__)
+            raise
         finally:
             self._protect_session_files()
 
