@@ -27,6 +27,14 @@ telegram-tui
 
 也可以使用 `python -m telegram_tui` 启动。每次打开新终端后，先进入项目目录并运行 `source .venv/bin/activate`。
 
+安装后也可以使用短命令 `tg` 或 `tele`，与 `telegram-tui` 等价，支持相同的参数：
+
+```bash
+tg          # 打开 Telegram TUI
+tele        # 同样打开 Telegram TUI
+tg --demo   # 离线演示
+```
+
 ## 登录真实账号
 
 1. 在 [Telegram 应用管理页面](https://my.telegram.org/apps) 创建应用，获取自己的 `api_id` 和 `api_hash`。本项目使用个人账号 API 凭据，不使用 BotFather 的机器人 Token。
